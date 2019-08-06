@@ -1,0 +1,206 @@
+* 三种string；
+
+1.文本类型字符串
+
+2.十六进制字符串
+
+3.正则表达式
+
+十六进制Example
+rule AlternativesExample1
+{
+    strings:
+       $hex_string = { F4 23 ( 62 B4 | 56 ) 45 }
+    condition:
+       $hex_string
+}
+valid
+F42362B445或者F4235645
+
+字符串Example
+
+默认是敏感的,但是可以通过nocase关键字设置成不敏感的
+rule CaseInsensitiveTextExample
+{
+    strings:
+        $text_string = "foobar" nocase
+    condition:
+        $text_string
+}
+这样Foobar, FOOBAR, and fOoBaR都会被匹配到。
+
+宽字节的匹配
+
+一个字符占两个字节
+
+rule WideCharTextExample1
+{
+    strings:
+        $wide_string = "Borland" wide
+    condition:
+       $wide_string
+}
+fullword关键词
+
+rule WideCharTextExample1
+
+{
+    strings:
+        $fullword_string = "domain" fullword
+    condition:
+       $fullword_string
+}
+www.mydomain.com www.my-domain.com www.domain.com
+
+正则表达式
+
+使用斜线包裹，而非双引号或者大括号。
+ rule RegExpExample1
+{
+    strings:
+        $re1 = /md5: [0-9a-fA-F]{32}/
+        $re2 = /state: (on|off)/
+    condition:
+        $re1 and $re2
+}
+
+
+条件判断语句Conditions
+
+可以没有特征strings但是不能没有strings字段
+
+可以设定特征出现的次数
+
+ rule CountExample
+{
+    strings:
+        $a = "dummy1"
+        $b = "dummy2"
+    condition:
+        #a == 6 and #b > 10
+}
+偏移地址offset
+
+rule InExample
+{
+    strings:
+        $a = "dummy1"
+        $b = "dummy2"
+    condition:
+        $a in (0..100) and $b in (100..filesize)
+}
+特征a出现在0-0x100偏移且特征b出现在0x100之后。
+
+文件大小
+ rule FileSizeExample
+{
+    condition:
+       filesize > 200KB
+}
+这个只能匹配文件，如果是运行着的程序的话，那么将永远不会匹配，因为这个时候filesize没有意义。
+
+特定位置的数据获取
+PE文件的判断
+ rule IsPE
+{
+  condition:
+     // MZ signature at offset 0 and ...
+     uint16(0) == 0x5A4D and
+     // ... PE signature at offset stored in MZ header at 0x3C
+     uint32(uint32(0x3C)) == 0x00004550
+}
+PE文件结构中的前两个字节是DOS签名5A4D,即“MZ”。
+
+特征集合
+rule OfExample1
+{
+strings:
+
+$a = "dummy1"
+$b = "dummy2"
+$c = "dummy3"
+condition:
+
+2 of ($a,$b,$c)
+}
+满足两个特征即可
+
+引用其他规则
+
+rule Rule1
+{
+    strings:
+        $a = "dummy1"
+    condition:
+        $a
+}
+rule Rule2
+{
+    strings:
+        $a = "dummy2"
+    condition:
+        $a and Rule1
+}
+全局规则
+
+global rule SizeLimit
+{
+    condition:
+        filesize < 2MB
+}
+规则标签
+方便对输出的信息进行归类。
+
+rule TagsExample1 : Foo Bar Baz
+{
+    ...
+}
+rule TagsExample2 : Bar
+{
+    ...
+}
+Metadata
+
+rule MetadataExample
+{
+    meta:
+        my_identifier_1 = "Some string data"
+        my_identifier_2 = 24
+        my_identifier_3 = true
+    strings:
+        $my_text_string = "text here"
+        $my_hex_string = { E2 34 A1 C8 23 FB }
+    condition:
+        $my_text_string or $my_hex_string
+}
+模块引用
+
+import "pe"
+rule Test
+{
+  strings:
+      $a = "some string"
+  condition:
+      $a and pe.entry_point == 0x1000
+}
+文件包含
+
+include "other.yar"
+其它
+容易踩坑的点
+当扫描的是某个进程文件时候，这个时候是没有filesize属性的，也就永远不会满足的。此外还有通过文件偏移来判断PE也是不可行的。
+web
+https://github.com/Tigzy/yaraeditor
+Reference
+恶意软件模式匹配利器 – YARA
+YARA：抗击恶意代码的神兵利器
+PEScanner
+yara规则自动生成
+UNLEASHING YARA – PART 2
+教你构建自己的yara数据库
+yarAnalyzer
+yara简介及API解析
+两个开源恶意代码的查杀引擎 clamav yara
+http://bruteforcelab.com/yara-a-beginners-guide.html
+https://blog.malwarebytes.com/threat-analysis/2013/10/using-yara-to-attribute-malware/
+https://securityintelligence.com/signature-based-detection-with-yara/
